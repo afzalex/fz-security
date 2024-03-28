@@ -1,0 +1,44 @@
+#!/bin/bash
+
+MODE=VOLATILE
+SURVIVAL_TOOL_NAME=fzsecurity
+DOCKER_IMAGE_NAME="${SURVIVAL_TOOL_NAME}"
+
+mkdir -p "${HOME}/.local/data"
+
+extraparams=""
+
+if [[ "${MODE}" == "VOLATILE" ]]; then
+docker container rm -f ${SURVIVAL_TOOL_NAME} > /dev/null 2>&1
+extraparams="--rm"
+fi
+
+
+useold=false
+if [[ "${MODE}" == "PERSIST" ]]; then
+    docker inspect ${SURVIVAL_TOOL_NAME} > /dev/null 2>&1
+    if [[ "$?" == "0" ]]; then
+        useold=true
+    fi
+fi
+
+if [[ -z "${HOST_PWD_FOR_FZST}" ]]; then
+    export HOST_PWD_FOR_FZST="$PWD"
+fi
+
+if [[ "$PWD" == "${HOST_PWD_FOR_FZST}" && -f "${HOST_PWD_FOR_FZST}/Dockerfile" ]]; then 
+    docker image rm -f "${DOCKER_IMAGE_NAME}"
+    docker container rm -f "${DOCKER_IMAGE_NAME}"
+    docker build --tag "${DOCKER_IMAGE_NAME}" .
+fi
+
+if [[ "$useold" == "true" ]]; then
+docker start -i ${SURVIVAL_TOOL_NAME}
+else
+docker run --name=${SURVIVAL_TOOL_NAME} \
+    -it ${extraparams} ${@}\
+    -h "${DOCKER_IMAGE_NAME}" \
+    -v ${HOME}/.local/data/${SURVIVAL_TOOL_NAME}/home/stuser/shared:/home/stuser/shared \
+    -v ${HOST_PWD_FOR_FZST}:/home/stuser/hostpwd \
+    "${DOCKER_IMAGE_NAME}"
+fi

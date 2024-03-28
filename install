@@ -1,0 +1,35 @@
+#!/bin/bash
+
+cat <<EOT > "/tmp/fz-security-bash-profile-template.txt"
+
+
+# Conent within this block is managed by fz-security/install
+# alias to use fz-security using fzsecure command
+fzsecure() {
+    pushd \${PWD} > /dev/null
+    cd "${PWD}"
+    ./start \$@
+    popd > /dev/null
+}
+alias fzsecure='export HOST_PWD_FOR_FZST=\${PWD} && fzsecure \$@'
+EOT
+
+target="${HOME}/.bash_profile"
+touch "${target}"
+
+# If managed block not found, add empty managed block
+if [[ -z $(cat ~/.bash_profile | grep '#FZ_SECURITY_MANAGED_BLOCK_START') ]]; then 
+cat <<EOT >> "$target"
+#FZ_SECURITY_MANAGED_BLOCK_START
+#FZ_SECURITY_MANAGED_BLOCK_END
+EOT
+fi
+
+# Replace conent between managed block
+awk '
+    BEGIN       {p=1}
+    /^#FZ_SECURITY_MANAGED_BLOCK_START/   {print;system("cat /tmp/fz-security-bash-profile-template.txt");p=0}
+    /^#FZ_SECURITY_MANAGED_BLOCK_END/     {p=1}
+    p' "${target}" > "${target}.tmp"
+mv "${target}.tmp" "${target}"
+
